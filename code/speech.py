@@ -51,18 +51,32 @@ def get_mfcc(rate, signal):
     mfcc = c(signal)
     return mfcc
 
+def get_machine():
+    # 7 diagonal (classes), dimension 20
+    gmm = bob.machine.GMMMachine(7, 20)
+    # gmm.means = kmeans.means
+    # gmm.weights = numpy.array([0.4, 0.6], 'float64')
+    #gmm.means = numpy.array([[1, 6, 2], [4, 3, 2]], 'float64')
+    # gmm.variances = numpy.array([[1, 2, 1], [2, 1, 2]], 'float64')
+    return gmm
+
+
+def get_trainer(gmm):
+    trainer = bob.trainer.ML_GMMTrainer(True, True, True)
+    trainer.convergence_threshold = 1e-5
+    trainer.max_iterations = 200
+
 
 def main():
     for file_path, sample_class in sample_generator(TRAIN_SAMPLES_FILE):
         rate, signal =  wavfile.read(file_path)
         #  VAD  & MFCC extraction
         mfcc = get_mfcc(rate, signal)
-        print mfcc.shape, (len(signal)/rate)/0.05 * 2
+        data = 0 # FIXME create data from mfcc and class
         import pdb; pdb.set_trace()
-
-# GMM
-
-# SVM
+        gmm = get_machine()
+        trainer = get_trainer(gmm)
+        trainer.train(gmm, data)
 
 if __name__ == "__main__":
     main()
