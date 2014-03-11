@@ -70,7 +70,7 @@ class Trainer(object):
         kmeansTrainer = bob.trainer.KMeansTrainer()
         kmeansTrainer.max_iterations = 200
         kmeansTrainer.convergence_threshold = 1e-5
-        kmeansTrainer.train(self.kmeans, data)
+        kmeansTrainer.train(kmeans, data)
         return kmeans.means
 
     def get_machine(self, means):
@@ -117,7 +117,10 @@ class Trainer(object):
                 data = mfcc
             if file_number % 100 == 0:
                 print "File number {0}".format(file_number)
+                break
         print "Extracting data FINISHED for class: {0}".format(class_number)
+        with open('mfccs_{0}.npy'.format(class_number), 'w') as f:
+            np.save(f, data)
         return data
 
     def train_machine(self, class_number):
@@ -126,21 +129,38 @@ class Trainer(object):
         data = self.extract_data(class_number)
         means = self.get_kmeans_means(data)
         gmm = self.get_machine(means)
-        trainer = self.get_trainer(gmm)
+        trainer = self.get_trainer()
         trainer.train(gmm, data)
         print "Machine #{0} training FINISHED".format(class_number)
         return gmm
 
+    def save_machine(self, gmm, file_path):
+        hdf5_file = bob.io.HDF5FILE(file_path, 'w')
+        gmm.save(hdf5_file)
+        del hdf5_file  # close descriptor
 
-    def train(self):
+    def train(self, machine=0):
         """Trains gmm machine with data from train part"""
-        for class_number in range(1, 8):
+        if machine is 0:
+            for class_number in range(1, 8):
+                gmm = self.train_machine(class_number)
+                self.save_machine(gmm, 'gmm{0}.hdf5'.format(class_number))
+        else:
+            class_number = machine
             gmm = self.train_machine(class_number)
-            hdf5_file = bob.io.HDF5FILE('gmm{0}.hdf5'.format(class_number), 'w')
-            gmm.save(hdf5_file)
-            del hdf5_file # close descriptor
-
+            self.save_machine(gmm, 'gmm{0}.hdf5'.format(class_number))
 
 if __name__ == "__main__":
-    trainer = Trainer()
-    trainer.train()
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--train-machine', type=int, help='Train machine with given index 1-7', default=0)
+    operation = parser.add_mutually_exclusive_group(required=True)
+    operation.add_argument('--train', action='store_true')
+    operation.add_argument('--classify')
+    args = parser.parse_args()
+    if args.train:
+        trainer = Trainer()
+        trainer.train(args.train_machine)
+    elif args.classify:
+        wav_path = args.classify
+
