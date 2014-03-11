@@ -5,13 +5,11 @@ import bob
 import scipy.io.wavfile as wavfile
 import numpy as np
 import csv
-import logging
 
 SAMPLES_PATH = '../agender_distribution/'
 TRAIN_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_train.txt'
 TEST_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_devel.txt'
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 class Trainer(object):
     RATE = 8000
@@ -87,9 +85,23 @@ class Trainer(object):
         trainer.max_iterations = 200
         return trainer
 
+    def filter_vad(self, mfcc):
+        energy = mfcc[:, 19]
+        energy = np.expand_dims(energy, 0).T
+        kmeansTrainer = bob.trainer.KMeansTrainer()
+        kmeans = bob.machine.KMeansMachine(2, 1)
+        kmeansTrainer = bob.trainer.KMeansTrainer()
+        kmeansTrainer.max_iterations = 100
+        kmeansTrainer.convergence_threshold = 1e-5
+        kmeansTrainer.train(kmeans, energy)
+        threshold = (kmeans.means[0] + kmeans.means[1]) / 2
+        mfcc = mfcc[mfcc[:, 19] < threshold]
+        return mfcc
+
+
     def extract_data(self, class_number):
         """Extract mfcc from samples and create dataset"""
-        logging.debug("Extracting data for class: {0}".format(class_number))
+        print "Extracting data for class: {0}".format(class_number)
         data = None
         file_number = 0
         for file_path, sample_class in self.sample_generator(TRAIN_SAMPLES_FILE):
@@ -98,25 +110,25 @@ class Trainer(object):
             file_number += 1
             rate, signal =  wavfile.read(file_path)
             #  VAD  & MFCC extraction
-            mfcc = self.get_mfcc(signal)
+            mfcc = self.filter_vad(self.get_mfcc(signal))
             try:
                 data = np.vstack((data, mfcc))
             except ValueError:
                 data = mfcc
             if file_number % 100 == 0:
-                logging.debug("File number {0}".format(file_number))
-        logging.debug("Extracting data FINISHED for class: {0}".format(class_number))
+                print "File number {0}".format(file_number)
+        print "Extracting data FINISHED for class: {0}".format(class_number)
         return data
 
     def train_machine(self, class_number):
         """Trains one gmm machine with class depicted by class_number"""
-        logging.debug("Training machine #{0}".format(class_number))
+        print "Training machine #{0}".format(class_number)
         data = self.extract_data(class_number)
         means = self.get_kmeans_means(data)
         gmm = self.get_machine(means)
         trainer = self.get_trainer(gmm)
         trainer.train(gmm, data)
-        logging.debug("Machine #{0} training FINISHED".format(class_number))
+        print "Machine #{0} training FINISHED".format(class_number)
         return gmm
 
 
