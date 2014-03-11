@@ -3,16 +3,19 @@
 
 import bob
 import scipy.io.wavfile as wavfile
-import numpy
+import numpy as np
 import csv
+import logging
 
 SAMPLES_PATH = '../agender_distribution/'
 TRAIN_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_train.txt'
 TEST_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_devel.txt'
 
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
-class Classifier(object):
+class Trainer(object):
     RATE = 8000
+    DIAGONALS = 35
 
     def __init__(self):
         self.create_mfcc(self.RATE)
@@ -59,25 +62,22 @@ class Classifier(object):
 
     def get_mfcc(self, signal):
         """Returns MFCC of given signal"""
-        signal = numpy.cast['float'](signal) # vector should be in **float**
+        signal = np.cast['float'](signal) # vector should be in **float**
         mfcc = self.c(signal)
         return mfcc
 
-    def train_kmeans(self, data):
-        kmeans = bob.machine.KMeansMachine(7, 20)
+    def get_kmeans_means(self, data):
+        """Returns means of given data"""
+        kmeans = bob.machine.KMeansMachine(self.DIAGONALS, 20)
         kmeansTrainer = bob.trainer.KMeansTrainer()
         kmeansTrainer.max_iterations = 200
         kmeansTrainer.convergence_threshold = 1e-5
         kmeansTrainer.train(self.kmeans, data)
-        return kmeans
+        return kmeans.means
 
-    def get_machine(self):
-        # 7 diagonal (classes), dimension 20
-        gmm = bob.machine.GMMMachine(7, 20)
-        gmm.means = self.kmeans.means
-        # gmm.weights = numpy.array([0.4, 0.6], 'float64')
-        # gmm.means = numpy.array([[1, 6, 2], [4, 3, 2]], 'float64')
-        # gmm.variances = numpy.array([[1, 2, 1], [2, 1, 2]], 'float64')
+    def get_machine(self, means):
+        gmm = bob.machine.GMMMachine(self.DIAGONALS, 20)
+        gmm.means = means
         return gmm
 
     def get_trainer(self):
@@ -87,23 +87,48 @@ class Classifier(object):
         trainer.max_iterations = 200
         return trainer
 
-    def extract_data(self):
+    def extract_data(self, class_number):
         """Extract mfcc from samples and create dataset"""
+        logging.debug("Extracting data for class: {0}".format(class_number))
+        data = None
+        file_number = 0
         for file_path, sample_class in self.sample_generator(TRAIN_SAMPLES_FILE):
+            if sample_class != class_number:
+                continue
+            file_number += 1
             rate, signal =  wavfile.read(file_path)
             #  VAD  & MFCC extraction
             mfcc = self.get_mfcc(signal)
-            data = 0 # FIXME create data from mfcc and class
+            try:
+                data = np.vstack((data, mfcc))
+            except ValueError:
+                data = mfcc
+            if file_number % 100 == 0:
+                logging.debug("File number {0}".format(file_number))
+        logging.debug("Extracting data FINISHED for class: {0}".format(class_number))
         return data
+
+    def train_machine(self, class_number):
+        """Trains one gmm machine with class depicted by class_number"""
+        logging.debug("Training machine #{0}".format(class_number))
+        data = self.extract_data(class_number)
+        means = self.get_kmeans_means(data)
+        gmm = self.get_machine(means)
+        trainer = self.get_trainer(gmm)
+        trainer.train(gmm, data)
+        logging.debug("Machine #{0} training FINISHED".format(class_number))
+        return gmm
+
 
     def train(self):
         """Trains gmm machine with data from train part"""
-        self.data = self.extract_data()
-        self.kmeans = self.train_kmeans(self.data)
-        self.gmm = self.get_machine()
-        self.trainer = self.get_trainer(self.gmm)
-        self.trainer.train(self.gmm, self.data)
+        for class_number in range(1, 8):
+            gmm = self.train_machine(class_number)
+            hdf5_file = bob.io.HDF5FILE('gmm{0}.hdf5'.format(class_number), 'w')
+            gmm.save(hdf5_file)
+            del hdf5_file # close descriptor
+
 
 if __name__ == "__main__":
-    classifier = Classifier()
-    classifier.train()
+    trainer = Trainer()
+    trainer.train()
