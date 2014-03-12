@@ -10,15 +10,9 @@ SAMPLES_PATH = '../agender_distribution/'
 TRAIN_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_train.txt'
 TEST_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_devel.txt'
 
-
-class Trainer(object):
-    RATE = 8000
-    DIAGONALS = 35
-
-    def __init__(self):
-        self.create_mfcc(self.RATE)
-
-    def classify(self, age, gender):
+class Core(object):
+    @staticmethod
+    def classify(age, gender):
         """Returns class computed of age and gender"""
         result = -1
         if age <= 14:
@@ -31,61 +25,8 @@ class Trainer(object):
             result += 1
         return result
 
-
-    def sample_generator(self, file_path):
-        """Generate tuple(path, class) of sample from given txt file"""
-        with open(file_path) as f:
-            reader = csv.reader(f, delimiter=' ')
-            for line in reader:
-                path = '/'.join([SAMPLES_PATH, line[0]])
-                sample_class = self.classify(int(line[3]), line[4])
-                yield path, sample_class
-
-    def create_mfcc(self, rate):
-        """Create mfcc extractor"""
-        win_length_ms = 20 # The window length of the cepstral analysis in milliseconds
-        win_shift_ms = 10 # The window shift of the cepstral analysis in milliseconds
-        n_filters = 24 # The number of filter bands
-        n_ceps = 19 # The number of cepstral coefficients
-        f_min = 0. # The minimal frequency of the filter bank
-        f_max = 4000. # The maximal frequency of the filter bank
-        delta_win = 2 # The integer delta value used for computing the first and second order derivatives
-        pre_emphasis_coef = 0.97 # The coefficient used for the pre-emphasis
-        dct_norm = True # A factor by which the cepstral coefficients are multiplied
-        mel_scale = True # Tell whether cepstral features are extracted on a linear (LFCC) or Mel (MFCC) scale
-        self.c = bob.ap.Ceps(rate, win_length_ms, win_shift_ms, n_filters, n_ceps,
-                        f_min, f_max, delta_win, pre_emphasis_coef, mel_scale,
-                        dct_norm)
-        self.c.with_energy = True # VAD
-
-    def get_mfcc(self, signal):
-        """Returns MFCC of given signal"""
-        signal = np.cast['float'](signal) # vector should be in **float**
-        mfcc = self.c(signal)
-        return mfcc
-
-    def get_kmeans_means(self, data):
-        """Returns means of given data"""
-        kmeans = bob.machine.KMeansMachine(self.DIAGONALS, 20)
-        kmeansTrainer = bob.trainer.KMeansTrainer()
-        kmeansTrainer.max_iterations = 200
-        kmeansTrainer.convergence_threshold = 1e-5
-        kmeansTrainer.train(kmeans, data)
-        return kmeans.means
-
-    def get_machine(self, means):
-        gmm = bob.machine.GMMMachine(self.DIAGONALS, 20)
-        gmm.means = means
-        return gmm
-
-    def get_trainer(self):
-        """Create trainer for gmm machine"""
-        trainer = bob.trainer.ML_GMMTrainer(True, True, True)
-        trainer.convergence_threshold = 1e-5
-        trainer.max_iterations = 200
-        return trainer
-
-    def filter_vad(self, mfcc):
+    @staticmethod
+    def filter_vad(mfcc):
         energy = mfcc[:, 19]
         energy = np.expand_dims(energy, 0).T
         kmeansTrainer = bob.trainer.KMeansTrainer()
@@ -98,6 +39,76 @@ class Trainer(object):
         mfcc = mfcc[mfcc[:, 19] < threshold]
         return mfcc
 
+    @staticmethod
+    def create_mfcc(rate):
+        """Create mfcc extractor"""
+        win_length_ms = 20 # The window length of the cepstral analysis in milliseconds
+        win_shift_ms = 10 # The window shift of the cepstral analysis in milliseconds
+        n_filters = 24 # The number of filter bands
+        n_ceps = 19 # The number of cepstral coefficients
+        f_min = 0. # The minimal frequency of the filter bank
+        f_max = 4000. # The maximal frequency of the filter bank
+        delta_win = 2 # The integer delta value used for computing the first and second order derivatives
+        pre_emphasis_coef = 0.97 # The coefficient used for the pre-emphasis
+        dct_norm = True # A factor by which the cepstral coefficients are multiplied
+        mel_scale = True # Tell whether cepstral features are extracted on a linear (LFCC) or Mel (MFCC) scale
+        c = bob.ap.Ceps(rate, win_length_ms, win_shift_ms, n_filters, n_ceps,
+                        f_min, f_max, delta_win, pre_emphasis_coef, mel_scale,
+                        dct_norm)
+        c.with_energy = True # VAD
+        return c
+
+    @staticmethod
+    def get_mfcc(c, signal):
+        """Returns MFCC of given signal
+        :param c:
+        """
+        signal = np.cast['float'](signal) # vector should be in **float**
+        mfcc = c(signal)
+        return mfcc
+
+
+class Trainer(object):
+    RATE = 8000
+    DIAGONALS = 35
+
+    def __init__(self):
+        self.c = Core.create_mfcc(self.RATE)
+
+    def sample_generator(self, file_path):
+        """Generate tuple(path, class) of sample from given txt file"""
+        with open(file_path) as f:
+            reader = csv.reader(f, delimiter=' ')
+            for line in reader:
+                path = '/'.join([SAMPLES_PATH, line[0]])
+                sample_class = Core.classify(int(line[3]), line[4])
+                yield path, sample_class
+
+
+    def get_kmeans_means(self, data):
+        """Returns means of given data"""
+        kmeans = bob.machine.KMeansMachine(self.DIAGONALS, 20)
+        kmeansTrainer = bob.trainer.KMeansTrainer()
+        # https://groups.google.com/forum/#!topic/bob-devel/VOi8k0Ts1gw
+        kmeansTrainer.initialization_method = kmeansTrainer.KMEANS_PLUS_PLUS
+        kmeansTrainer.max_iterations = 200
+        kmeansTrainer.convergence_threshold = 1e-5
+        kmeansTrainer.train(kmeans, data)
+        if np.any(np.isnan(kmeans.means)):
+            import pdb; pdb.set_trace()
+        return kmeans.means
+
+    def get_empty_machine(self, means):
+        gmm = bob.machine.GMMMachine(self.DIAGONALS, 20)
+        gmm.means = means
+        return gmm
+
+    def get_trainer(self):
+        """Create trainer for gmm machine"""
+        trainer = bob.trainer.ML_GMMTrainer(True, True, True)
+        trainer.convergence_threshold = 1e-5
+        trainer.max_iterations = 200
+        return trainer
 
     def extract_data(self, class_number):
         """Extract mfcc from samples and create dataset"""
@@ -110,7 +121,9 @@ class Trainer(object):
             file_number += 1
             rate, signal =  wavfile.read(file_path)
             #  VAD  & MFCC extraction
-            mfcc = self.filter_vad(self.get_mfcc(signal))
+            mfcc = Core.filter_vad(Core.get_mfcc(self.c, signal))
+            if np.any(np.isnan(mfcc)):
+                import pdb; pdb.set_trace()
             try:
                 data = np.vstack((data, mfcc))
             except ValueError:
@@ -128,7 +141,7 @@ class Trainer(object):
         print "Training machine #{0}".format(class_number)
         data = self.extract_data(class_number)
         means = self.get_kmeans_means(data)
-        gmm = self.get_machine(means)
+        gmm = self.get_empty_machine(means)
         trainer = self.get_trainer()
         trainer.train(gmm, data)
         print "Machine #{0} training FINISHED".format(class_number)
@@ -150,6 +163,36 @@ class Trainer(object):
             gmm = self.train_machine(class_number)
             self.save_machine(gmm, 'gmm{0}.hdf5'.format(class_number))
 
+
+class Classifier(object):
+    def __init__(self):
+        self.load_machines(['gmm{0}.hdf5'.format(i) for i in range(1,8)])
+        self.c = Core.create_mfcc()
+
+    def load_machines(self, paths):
+        """Load all machines from list of paths sorted by theirs classes"""
+        self.machines = []
+        for file_path in paths:
+            hdf5file = bob.io.HDF5FILE(file_path)
+            self.machines.append(bob.machine.gmm(hdf5file))
+            del hdf5file
+
+    def get_log_likehoods(self, mfcc):
+        """Return array of log likehood of each mfcc for each machine"""
+        log_likehoods = np.zeros([mfcc.shape[0], len(self.machines)])
+        for chunk_index, chunk_mfcc in enumerate(mfcc):
+            for machine_index, machine in enumerate(self.machines):
+                log_likehoods[chunk_index, machine_index] = machine(chunk_mfcc)
+        return log_likehoods
+
+
+    def classify_file(self, path):
+        """Returns class of given wav file in path"""
+        rate, signal =  wavfile.read(path)
+        mfcc = Core.filter_vad(Core.get_mfcc(self.c, signal))
+        log_likehoods = self.get_log_likehoods(mfcc)
+        # TODO get overall probabilities that this file is in particulary class
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
@@ -163,4 +206,6 @@ if __name__ == "__main__":
         trainer.train(args.train_machine)
     elif args.classify:
         wav_path = args.classify
+        classifier = Classifier()
+        print classifier.classify_file(wav_path)
 
