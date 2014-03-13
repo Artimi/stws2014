@@ -13,7 +13,7 @@ TEST_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_devel.txt'
 MFCC_COEFICIENTS = 19
 MFCC_COEFICIENTS_ENERGY = MFCC_COEFICIENTS + 1
 RATE = 8000
-DIAGONALS = 32
+NUMBER_GAUSSIANS = 32
 
 
 class Core(object):
@@ -100,7 +100,7 @@ class Trainer(object):
         """
         Returns means of given data computed using kmeans algorithm
         """
-        kmeans = bob.machine.KMeansMachine(DIAGONALS, MFCC_COEFICIENTS_ENERGY)
+        kmeans = bob.machine.KMeansMachine(NUMBER_GAUSSIANS, MFCC_COEFICIENTS_ENERGY)
         kmeansTrainer = bob.trainer.KMeansTrainer()
         # https://groups.google.com/forum/#!topic/bob-devel/VOi8k0Ts1gw
         kmeansTrainer.initialization_method = kmeansTrainer.KMEANS_PLUS_PLUS
@@ -117,8 +117,9 @@ class Trainer(object):
         """
         Return empty machine
         """
-        gmm = bob.machine.GMMMachine(DIAGONALS, MFCC_COEFICIENTS_ENERGY)
+        gmm = bob.machine.GMMMachine(NUMBER_GAUSSIANS, MFCC_COEFICIENTS_ENERGY)
         gmm.means = means
+        gmm.set_variance_thresholds(1e-6)
         return gmm
 
     @staticmethod
@@ -165,6 +166,7 @@ class Trainer(object):
         data = self.extract_data(class_number)
         means = self.get_kmeans_means(data)
         gmm = self.get_empty_machine(means)
+        self.save_machine(gmm, 'gmm_before_training.hdf5')
         trainer = self.get_trainer()
         trainer.train(gmm, data)
         print "Machine #{0} training FINISHED".format(class_number)
@@ -175,7 +177,7 @@ class Trainer(object):
         """
         Save given machinge gmm to file_path in hdf5 format
         """
-        hdf5_file = bob.io.HDF5FILE(file_path, 'w')
+        hdf5_file = bob.io.HDF5File(file_path, 'w')
         gmm.save(hdf5_file)
         del hdf5_file  # close descriptor
 
