@@ -25,10 +25,11 @@ class Core(object):
         result = -1
         if age <= 14:
             return 1
-        ages = [24, 54, 80]
+        ages = [24, 54, 120]
         for index, ag in enumerate(ages):
             if age <= ag:
-                result = index
+                result = 2 * (index + 1)
+                break
         if gender == 'm':
             result += 1
         return result
@@ -107,10 +108,6 @@ class Trainer(object):
         kmeansTrainer.max_iterations = 200
         kmeansTrainer.convergence_threshold = 1e-5
         kmeansTrainer.train(kmeans, data)
-        if np.any(np.isnan(kmeans.means)):
-            import pdb;
-
-            pdb.set_trace()
         return kmeans.means
 
     def get_empty_machine(self, means):
@@ -152,6 +149,7 @@ class Trainer(object):
                 data = mfcc
             if file_number % 100 == 0:
                 print "File number {0}".format(file_number)
+                break
         print "Extracting data FINISHED for class: {0}".format(class_number)
         with open('mfccs_{0}.npy'.format(class_number), 'w') as f:
             np.save(f, data)
@@ -207,8 +205,8 @@ class Classifier(object):
         """Load all machines from list of paths sorted by theirs classes"""
         self.machines = []
         for file_path in paths:
-            hdf5file = bob.io.HDF5FILE(file_path)
-            self.machines.append(bob.machine.gmm(hdf5file))
+            hdf5file = bob.io.HDF5File(file_path)
+            self.machines.append(bob.machine.GMMMachine(hdf5file))
             del hdf5file
 
     def get_log_likelihoods(self, mfcc):
@@ -219,19 +217,13 @@ class Classifier(object):
                 log_likehoods[chunk_index, machine_index] = machine(chunk_mfcc)
         return log_likehoods
 
-    @staticmethod
-    def compute_overall_likelihood(log_likehoods):
-        """Computes overall likelihood from likelihoods of each mffc"""
-        #TODO computation
-        result = np.zeros(7)
-        return result
-
     def classify_file(self, path):
         """Returns class of given wav file in path"""
         rate, signal = wavfile.read(path)
+        # think about not using filter_vad
         mfcc = Core.filter_vad(Core.get_mfcc(self.c, signal))
         log_likehoods = self.get_log_likelihoods(mfcc)
-        overall_likelihood = self.compute_overall_likelihood(log_likehoods)
+        overall_likelihood = np.average(log_likehoods, axis=0)
         return overall_likelihood
 
 
@@ -250,4 +242,8 @@ if __name__ == "__main__":
     elif args.classify:
         wav_path = args.classify
         classifier = Classifier()
-        print classifier.classify_file(wav_path)
+        overall_likeliood = classifier.classify_file(wav_path)
+        best_match = np.argmax(overall_likeliood) + 1
+        print "Overall likelihood:", overall_likeliood
+        print "Best match:", best_match
+
