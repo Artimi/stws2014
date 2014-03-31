@@ -149,7 +149,6 @@ class Trainer(object):
                 data = mfcc
             if file_number % 100 == 0:
                 print "File number {0}".format(file_number)
-                break
         print "Extracting data FINISHED for class: {0}".format(class_number)
         with open('mfccs_{0}.npy'.format(class_number), 'w') as f:
             np.save(f, data)
