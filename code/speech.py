@@ -198,6 +198,7 @@ class Classifier(object):
     """
 
     def __init__(self, gmm_path):
+        self.gmm_path = gmm_path
         self.load_machines([os.path.join(gmm_path, 'gmm{0}.hdf5'.format(i)) for i in range(1, 8)])
         self.c = Core.create_mfcc(RATE)
 
@@ -226,6 +227,16 @@ class Classifier(object):
         overall_likelihood = np.average(log_likehoods, axis=0)
         return overall_likelihood
 
+    def test(self):
+        confusion_matrix = np.zeros([7, 7], dtype=int)
+        for file_path, sample_class in Core.sample_generator(TEST_SAMPLES_FILE):
+            overall_likelihood = self.classify_file(file_path)
+            best_match = np.argmax(overall_likelihood)
+            confusion_matrix[sample_class - 1, best_match] += 1
+        with open(os.join(self.gmm_path, 'confusion_matrix.npy'), 'w') as f:
+            np.save(f, confusion_matrix)
+        return confusion_matrix
+
 
 if __name__ == "__main__":
     import argparse
@@ -236,6 +247,7 @@ if __name__ == "__main__":
     operation = parser.add_mutually_exclusive_group(required=True)
     operation.add_argument('--train', action='store_true')
     operation.add_argument('--classify-file')
+    operation.add_argument('--test', action='store_true')
     args = parser.parse_args()
     if args.train:
         trainer = Trainer()
@@ -247,3 +259,6 @@ if __name__ == "__main__":
         best_match = np.argmax(overall_likeliood) + 1
         print "Overall likelihood:", overall_likeliood
         print "Best match:", best_match
+    elif args.test:
+        classifier = Classifier(args.machine_path)
+        confusion_matrix = classifier.test()
