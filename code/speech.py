@@ -5,6 +5,7 @@ import bob
 import scipy.io.wavfile as wavfile
 import numpy as np
 import csv
+import os
 
 SAMPLES_PATH = '../agender_distribution/'
 TRAIN_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_train.txt'
@@ -196,8 +197,8 @@ class Classifier(object):
     and compute overall likelihood of given sample per each machine.
     """
 
-    def __init__(self):
-        self.load_machines(['gmm{0}.hdf5'.format(i) for i in range(1, 8)])
+    def __init__(self, gmm_path):
+        self.load_machines([os.path.join(gmm_path, 'gmm{0}.hdf5'.format(i)) for i in range(1, 8)])
         self.c = Core.create_mfcc(RATE)
 
     def load_machines(self, paths):
@@ -231,18 +232,18 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--train-machine', type=int, help='Train machine with given index 1-7', default=0)
+    parser.add_argument('--machine-path', type=str, help='Path to saved gmm machines', default='../computation')
     operation = parser.add_mutually_exclusive_group(required=True)
     operation.add_argument('--train', action='store_true')
-    operation.add_argument('--classify')
+    operation.add_argument('--classify-file')
     args = parser.parse_args()
     if args.train:
         trainer = Trainer()
         trainer.train(args.train_machine)
-    elif args.classify:
-        wav_path = args.classify
-        classifier = Classifier()
+    elif args.classify_file:
+        wav_path = args.classify_file
+        classifier = Classifier(args.machine_path)
         overall_likeliood = classifier.classify_file(wav_path)
         best_match = np.argmax(overall_likeliood) + 1
         print "Overall likelihood:", overall_likeliood
         print "Best match:", best_match
-
