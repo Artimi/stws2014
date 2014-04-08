@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 #-*- encoding: utf-8 -*-
 
-import bob
 import scipy.io.wavfile as wavfile
 import numpy as np
 import csv
 import os
+import sys
+try:
+    import bob
+except ImportError:
+    sys.path.append(os.path.dirname(os.path.expanduser('~/bob-lib/')))
+    import bob
 
 SAMPLES_PATH = '../agender_distribution/'
 TRAIN_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_train.txt'
