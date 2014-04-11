@@ -9,7 +9,7 @@ import sys
 try:
     import bob
 except ImportError:
-    sys.path.append(os.path.dirname(os.path.expanduser('~/bob-lib/')))
+    sys.path.append(os.path.dirname(os.path.expanduser('/datapool/home/miikapi/bob/bob/lib64/python2.7/site-packages/')))
     import bob
 
 SAMPLES_PATH = '../agender_distribution/'
@@ -234,11 +234,15 @@ class Classifier(object):
 
     def test(self):
         confusion_matrix = np.zeros([7, 7], dtype=int)
+        i = 0
         for file_path, sample_class in Core.sample_generator(TEST_SAMPLES_FILE):
+            i += 1
             overall_likelihood = self.classify_file(file_path)
             best_match = np.argmax(overall_likelihood)
             confusion_matrix[sample_class - 1, best_match] += 1
-        with open(os.join(self.gmm_path, 'confusion_matrix.npy'), 'w') as f:
+            if i % 100 == 0:
+                print "Testing", i
+        with open(os.path.join(self.gmm_path, 'confusion_matrix.npy'), 'w') as f:
             np.save(f, confusion_matrix)
         return confusion_matrix
 
