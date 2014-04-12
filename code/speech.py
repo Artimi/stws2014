@@ -332,7 +332,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.train:
         if args.map:
-            trainer = Trainer_Map(args.machine_path, args.vad)
+            trainer = Trainer_MAP(args.machine_path, args.vad)
             trainer.train()
         else:
             trainer = Trainer(args.machine_path, args.vad)
