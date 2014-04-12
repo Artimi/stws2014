@@ -167,6 +167,8 @@ class Trainer(object):
             np.save(f, data)
         return data
 
+
+
     def train_machine(self, class_number):
         """
         Trains one gmm machine with class depicted by class_number
@@ -200,6 +202,61 @@ class Trainer(object):
             gmm = self.train_machine(class_number)
             self.save_machine(gmm, os.path.join(self.gmm_path, 'gmm{0}.hdf5'.format(class_number)))
 
+class Trainer_MAP(Trainer):
+    def extract_data(self):
+        """
+        Extract mfcc from samples and create dataset for MAP
+        """
+        data = {x:None for x in range(1,8)}
+        data[0] = None
+        file_number = 0
+        for file_path, sample_class in Core.sample_generator(TRAIN_SAMPLES_FILE):
+            file_number += 1
+            rate, signal = wavfile.read(file_path)
+            #  VAD  & MFCC extraction
+            if self.vad:
+                mfcc = Core.filter_vad(Core.get_mfcc(self.c, signal))
+            else:
+                mfcc = Core.get_mfcc(self.c, signal)
+
+            try:
+                data[sample_class] = np.vstack([data[sample_class], mfcc])
+            except ValueError:
+                data[sample_class] = mfcc
+            try:
+                data[0] = np.vstack([data[0], mfcc])
+            except ValueError:
+                data[0] = mfcc
+
+            if file_number % 100 == 0:
+                print "File number {0}".format(file_number)
+        print "Extracting data FINISHED"
+        return data
+
+    @staticmethod
+    def get_MAP_trainer():
+        relevance_factor = 4.
+        trainer = bob.trainer.MAP_GMMTrainer(relevance_factor, True, False, False) # mean adaptation only
+        trainer.convergence_threshold = 1e-5
+        trainer.max_iterations = 200
+        return trainer
+
+    def train(self):
+        data = self.extract_data()
+        means = self.get_kmeans_means(data[0])
+        gmm_general = self.get_empty_machine(means)
+        ml_trainer =  self.get_trainer()
+        ml_trainer.train(gmm_general, data[0])
+        self.save_machine(gmm_general, os.path.join(self.gmm_path, 'gmm_general.hdf5'))
+        print "Training general_gmm FINISHED"
+        for i in range(1, 8):
+            print "Start adapting gmm ", i
+            gmm_adapted = self.get_empty_machine(means)
+            map_trainer = self.get_MAP_trainer()
+            map_trainer.set_prior_gmm(gmm_general)
+            map_trainer.train(gmm_adapted, data[i])
+            self.save_machine(gmm_adapted, os.path.join(self.gmm_path, 'gmm{0}.hdf5'.format(i)))
+            print "Adapting gmm {0} FINISHED".format(i)
 
 class Classifier(object):
     """
@@ -267,14 +324,19 @@ if __name__ == "__main__":
     parser.add_argument('--train-machine', type=int, help='Train machine with given index 1-7', default=0)
     parser.add_argument('--machine-path', type=str, help='Path to saved gmm machines', default='../computation')
     parser.add_argument('--vad', action='store_true', default=False, help='Whether use Voice Activity Detection filter or not, default not')
+    parser.add_argument('--map', action='store_true', default=False, help='Use MAP instead of ML')
     operation = parser.add_mutually_exclusive_group(required=True)
     operation.add_argument('--train', action='store_true', help='Train regime, train gmm and saves them to machine_path')
     operation.add_argument('--classify-file', help='Classify one file')
     operation.add_argument('--test', action='store_true', help='Tests gmm machines with test data')
     args = parser.parse_args()
     if args.train:
-        trainer = Trainer(args.machine_path, args.vad)
-        trainer.train(args.train_machine)
+        if args.map:
+            trainer = Trainer_Map(args.machine_path, args.vad)
+            trainer.train()
+        else:
+            trainer = Trainer(args.machine_path, args.vad)
+            trainer.train(args.train_machine)
     elif args.classify_file:
         wav_path = args.classify_file
         classifier = Classifier(args.machine_path, args.vad)
