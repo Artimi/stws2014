@@ -111,7 +111,7 @@ class Trainer(object):
         kmeans = bob.machine.KMeansMachine(NUMBER_GAUSSIANS, MFCC_COEFICIENTS_ENERGY)
         kmeansTrainer = bob.trainer.KMeansTrainer()
         # https://groups.google.com/forum/#!topic/bob-devel/VOi8k0Ts1gw
-        kmeansTrainer.initialization_method = kmeansTrainer.KMEANS_PLUS_PLUS
+        #kmeansTrainer.initialization_method = kmeansTrainer.KMEANS_PLUS_PLUS
         kmeansTrainer.max_iterations = 200
         kmeansTrainer.convergence_threshold = 1e-5
         kmeansTrainer.train(kmeans, data)
