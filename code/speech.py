@@ -100,8 +100,9 @@ class Core(object):
 
 
 class Trainer(object):
-    def __init__(self):
+    def __init__(self, vad=True):
         self.c = Core.create_mfcc(RATE)
+        self.vad = vad
 
     def get_kmeans_means(self, data):
         """
@@ -148,7 +149,11 @@ class Trainer(object):
             file_number += 1
             rate, signal = wavfile.read(file_path)
             #  VAD  & MFCC extraction
-            mfcc = Core.filter_vad(Core.get_mfcc(self.c, signal))
+            if self.vad:
+                mfcc = Core.filter_vad(Core.get_mfcc(self.c, signal))
+            else:
+                mfcc = Core.get_mfcc(self.c, signal)
+
             try:
                 data = np.vstack([data, mfcc])
             except ValueError:
@@ -202,8 +207,9 @@ class Classifier(object):
     and compute overall likelihood of given sample per each machine.
     """
 
-    def __init__(self, gmm_path):
+    def __init__(self, gmm_path, vad=True):
         self.gmm_path = gmm_path
+        self.vad = vad
         self.load_machines([os.path.join(gmm_path, 'gmm{0}.hdf5'.format(i)) for i in range(1, 8)])
         self.c = Core.create_mfcc(RATE)
 
@@ -227,7 +233,10 @@ class Classifier(object):
         """Returns class of given wav file in path"""
         rate, signal = wavfile.read(path)
         # think about not using filter_vad
-        mfcc = Core.filter_vad(Core.get_mfcc(self.c, signal))
+        if self.vad:
+            mfcc = Core.filter_vad(Core.get_mfcc(self.c, signal))
+        else:
+            mfcc = Core.get_mfcc(self.c, signal)
         log_likehoods = self.get_log_likelihoods(mfcc)
         overall_likelihood = np.average(log_likehoods, axis=0)
         return overall_likelihood
@@ -253,21 +262,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--train-machine', type=int, help='Train machine with given index 1-7', default=0)
     parser.add_argument('--machine-path', type=str, help='Path to saved gmm machines', default='../computation')
+    parser.add_argument('--vad', action='store_true', default=False)
     operation = parser.add_mutually_exclusive_group(required=True)
     operation.add_argument('--train', action='store_true')
     operation.add_argument('--classify-file')
     operation.add_argument('--test', action='store_true')
     args = parser.parse_args()
     if args.train:
-        trainer = Trainer()
+        trainer = Trainer(args.vad)
         trainer.train(args.train_machine)
     elif args.classify_file:
         wav_path = args.classify_file
-        classifier = Classifier(args.machine_path)
+        classifier = Classifier(args.machine_path, args.vad)
         overall_likeliood = classifier.classify_file(wav_path)
         best_match = np.argmax(overall_likeliood) + 1
         print "Overall likelihood:", overall_likeliood
         print "Best match:", best_match
     elif args.test:
-        classifier = Classifier(args.machine_path)
+        classifier = Classifier(args.machine_path, args.vad)
         confusion_matrix = classifier.test()
+        print confusion_matrix
