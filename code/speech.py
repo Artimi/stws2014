@@ -6,6 +6,7 @@ import numpy as np
 import csv
 import os
 import sys
+from __future__ import division
 try:
     import bob
 except ImportError:
