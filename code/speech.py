@@ -174,7 +174,6 @@ class Trainer(object):
         data = self.extract_data(class_number)
         means = self.get_kmeans_means(data)
         gmm = self.get_empty_machine(means)
-        self.save_machine(gmm, 'gmm_before_training.hdf5')
         trainer = self.get_trainer()
         trainer.train(gmm, data)
         print "Machine #{0} training FINISHED".format(class_number)
