@@ -100,8 +100,9 @@ class Core(object):
 
 
 class Trainer(object):
-    def __init__(self, vad=True):
+    def __init__(self, gmm_path, vad=True):
         self.c = Core.create_mfcc(RATE)
+        self.gmm_path = gmm_path
         self.vad = vad
 
     def get_kmeans_means(self, data):
@@ -161,7 +162,7 @@ class Trainer(object):
             if file_number % 100 == 0:
                 print "File number {0}".format(file_number)
         print "Extracting data FINISHED for class: {0}".format(class_number)
-        with open('mfccs_{0}.npy'.format(class_number), 'w') as f:
+        with open(os.path.join(self.gmm_path, 'mfccs_{0}.npy'.format(class_number)), 'w') as f:
             np.save(f, data)
         return data
 
@@ -193,11 +194,11 @@ class Trainer(object):
         if machine is 0:
             for class_number in range(1, 8):
                 gmm = self.train_machine(class_number)
-                self.save_machine(gmm, 'gmm{0}.hdf5'.format(class_number))
+                self.save_machine(gmm, os.path.join(self.gmm_path, 'gmm{0}.hdf5'.format(class_number)))
         else:
             class_number = machine
             gmm = self.train_machine(class_number)
-            self.save_machine(gmm, 'gmm{0}.hdf5'.format(class_number))
+            self.save_machine(gmm, os.path.join(self.gmm_path, 'gmm{0}.hdf5'.format(class_number)))
 
 
 class Classifier(object):
@@ -269,7 +270,7 @@ if __name__ == "__main__":
     operation.add_argument('--test', action='store_true', help='Tests gmm machines with test data')
     args = parser.parse_args()
     if args.train:
-        trainer = Trainer(args.vad)
+        trainer = Trainer(args.machine_path, args.vad)
         trainer.train(args.train_machine)
     elif args.classify_file:
         wav_path = args.classify_file
