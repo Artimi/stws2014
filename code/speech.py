@@ -230,6 +230,9 @@ class Trainer_MAP(Trainer):
 
             if file_number % 100 == 0:
                 print "File number {0}".format(file_number)
+        for i in range(0, 8):
+            with open(os.path.join(self.gmm_path, 'mfccs_{0}.npy'.format(i)), 'w') as f:
+                np.save(f, data)
         print "Extracting data FINISHED"
         return data
 
