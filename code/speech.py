@@ -257,7 +257,7 @@ class Classifier(object):
         return confusion_matrix
 
     def process_results(self, confusion_matrix):
-        accuracy = np.diagonal(confusion_matrix) / (np.sum(confusion_matrix, axis=1) - np.diagonal(confusion_matrix))
+        accuracy = np.diagonal(confusion_matrix) / np.sum(confusion_matrix, axis=1)
         return accuracy
 
 if __name__ == "__main__":
