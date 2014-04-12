@@ -53,7 +53,7 @@ class Core(object):
         kmeansTrainer.convergence_threshold = 1e-5
         kmeansTrainer.train(kmeans, energy)
         threshold = (kmeans.means[0] + kmeans.means[1]) / 2
-        mfcc = mfcc[mfcc[:, 19] < threshold]
+        mfcc = mfcc[mfcc[:, 19] > threshold]
         return mfcc
 
     @staticmethod
