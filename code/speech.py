@@ -256,6 +256,9 @@ class Classifier(object):
             np.save(f, confusion_matrix)
         return confusion_matrix
 
+    def process_results(self, confusion_matrix):
+        accuracy = np.diagonal(confusion_matrix) / (np.sum(confusion_matrix, axis=1) - np.diagonal(confusion_matrix))
+        return accuracy
 
 if __name__ == "__main__":
     import argparse
@@ -283,3 +286,5 @@ if __name__ == "__main__":
         classifier = Classifier(args.machine_path, args.vad)
         confusion_matrix = classifier.test()
         print confusion_matrix
+        accuracy = classifier.process_results(confusion_matrix)
+        print accuracy
