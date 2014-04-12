@@ -1,12 +1,12 @@
 #!/usr/bin/env python2.7
 #-*- encoding: utf-8 -*-
 
+from __future__ import division
 import scipy.io.wavfile as wavfile
 import numpy as np
 import csv
 import os
 import sys
-from __future__ import division
 try:
     import bob
 except ImportError:
