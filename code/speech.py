@@ -375,6 +375,7 @@ if __name__ == "__main__":
         print "Confusion Matrix:\n", confusion_matrix
         print
         print "Accuracy to each class:\n", accuracy_class
+        print "Average: ", np.average(accuracy_class)
         print
         print "Accuracy of gender classification:\n", accuracy_gender
         print
