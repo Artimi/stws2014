@@ -54,17 +54,17 @@ class Core(object):
         kmeansTrainer.convergence_threshold = 1e-5
         kmeansTrainer.train(kmeans, energy)
         threshold = (kmeans.means[0] + kmeans.means[1]) / 2
-        mfcc = mfcc[mfcc[:, 19] > threshold]
+        mfcc = mfcc[mfcc[:, -1] > threshold]
         return mfcc
 
     @staticmethod
-    def create_mfcc(rate):
+    def create_mfcc(rate, delta_delta):
         """
         Create mfcc extractor
         """
         win_length_ms = 20  # The window length of the cepstral analysis in milliseconds
         win_shift_ms = 10  # The window shift of the cepstral analysis in milliseconds
-        n_filters = 24  # The number of filter bands # add to 30
+        n_filters = 30  # The number of filter bands # add to 30
         n_ceps = MFCC_COEFICIENTS  # The number of cepstral coefficients
         f_min = 0.  # The minimal frequency of the filter bank
         f_max = 4000.  # The maximal frequency of the filter bank
@@ -76,6 +76,9 @@ class Core(object):
                         f_min, f_max, delta_win, pre_emphasis_coef, mel_scale,
                         dct_norm)
         c.with_energy = True  # VAD
+        if delta_delta:
+            c.with_delta = True
+            c.with_delta_delta = True
         return c
 
     @staticmethod
@@ -101,8 +104,8 @@ class Core(object):
 
 
 class Trainer(object):
-    def __init__(self, gmm_path, vad=True):
-        self.c = Core.create_mfcc(RATE)
+    def __init__(self, gmm_path, vad=True, delta_delta=False):
+        self.c = Core.create_mfcc(RATE, delta_delta)
         self.gmm_path = gmm_path
         self.vad = vad
 
@@ -268,11 +271,11 @@ class Classifier(object):
     and compute overall likelihood of given sample per each machine.
     """
 
-    def __init__(self, gmm_path, vad=True):
+    def __init__(self, gmm_path, vad=True, delta_delta=False):
         self.gmm_path = gmm_path
         self.vad = vad
         self.load_machines([os.path.join(gmm_path, 'gmm{0}.hdf5'.format(i)) for i in range(1, 8)])
-        self.c = Core.create_mfcc(RATE)
+        self.c = Core.create_mfcc(RATE, delta_delta)
 
     def load_machines(self, paths):
         """Load all machines from list of paths sorted by theirs classes"""
@@ -343,6 +346,7 @@ if __name__ == "__main__":
     parser.add_argument('--machine-path', type=str, help='Path to saved gmm machines', default='../computation')
     parser.add_argument('--vad', action='store_true', default=False, help='Whether use Voice Activity Detection filter or not, default not')
     parser.add_argument('--map', action='store_true', default=False, help='Use MAP instead of ML')
+    parser.add_argument('--delta-delta', action='store_true', default=False, help='Whether to used first and second derivatives for mfcc')
     operation = parser.add_mutually_exclusive_group(required=True)
     operation.add_argument('--train', action='store_true', help='Train regime, train gmm and saves them to machine_path')
     operation.add_argument('--classify-file', help='Classify one file')
@@ -351,24 +355,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
     if args.train:
         if args.map:
-            trainer = Trainer_MAP(args.machine_path, args.vad)
+            trainer = Trainer_MAP(args.machine_path, args.vad, args.delta_delta)
             trainer.train()
         else:
-            trainer = Trainer(args.machine_path, args.vad)
+            trainer = Trainer(args.machine_path, args.vad, args.delta_delta)
             trainer.train(args.train_machine)
     elif args.classify_file:
         wav_path = args.classify_file
-        classifier = Classifier(args.machine_path, args.vad)
+        classifier = Classifier(args.machine_path, args.vad, args.delta_delta)
         overall_likeliood = classifier.classify_file(wav_path)
         best_match = np.argmax(overall_likeliood) + 1
         print "Overall likelihood:", overall_likeliood
         print "Best match:", best_match
     elif args.test:
-        classifier = Classifier(args.machine_path, args.vad)
+        classifier = Classifier(args.machine_path, args.vad, args.delta_delta)
         confusion_matrix = classifier.test()
-        print confusion_matrix
         accuracy = classifier.process_results(confusion_matrix)
-        print accuracy
     elif args.show_results:
         confusion_matrix = np.load(os.path.join(args.machine_path, 'confusion_matrix.npy'))
         accuracy_class, accuracy_gender, accuracy_age = Classifier.process_results(confusion_matrix)
