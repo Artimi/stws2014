@@ -316,16 +316,24 @@ class Classifier(object):
             np.save(f, confusion_matrix)
         return confusion_matrix
 
-    @classmethod
-    def process_results(confusion_matrix):
-        accuracy_class = np.diagonal(confusion_matrix) / np.sum(confusion_matrix, axis=1)
+    @staticmethod
+    def process_results(cm):
+        accuracy_class = np.diagonal(cm) / np.sum(cm, axis=1)
+
         accuracy_gender = {'kid': 0.0, 'f': 0.0, 'm': 0.0}
-        accuracy_gender['kid'] = confusion_matrix[0, 0] / np.sum(confusion_matrix[0, :])
-        f_line = np.sum(confusion_matrix[1::2, 1:], axis=0)
+        accuracy_gender['kid'] = cm[0, 0] / np.sum(cm[0, :])
+        f_line = np.sum(cm[1::2, 1:], axis=0)
         accuracy_gender['f'] = np.sum(f_line[::2]) / np.sum(f_line)
-        m_line = np.sum(confusion_matrix[2::2, 1:], axis=0)
+        m_line = np.sum(cm[2::2, 1:], axis=0)
         accuracy_gender['m'] = np.sum(m_line[1::2]) / np.sum(m_line)
-        return accuracy_class, accuracy_gender
+
+        accuracy_age = {14: 0.0, 24: 0.0, 54: 0.0, 120: 0.0}
+        accuracy_age[14] = cm[0, 0] / np.sum(cm[0, :])
+        accuracy_age[24] = np.sum(cm[1:3, 1:3]) / np.sum(cm[1:3, :])
+        accuracy_age[54] = np.sum(cm[3:5, 3:5]) / np.sum(cm[3:5, :])
+        accuracy_age[120] = np.sum(cm[5:, 5:]) / np.sum(cm[5:, :])
+
+        return accuracy_class, accuracy_gender, accuracy_age
 
 if __name__ == "__main__":
     import argparse
@@ -363,9 +371,11 @@ if __name__ == "__main__":
         print accuracy
     elif args.show_results:
         confusion_matrix = np.load(os.path.join(args.machine_path, 'confusion_matrix.npy'))
-        accuracy_class, accuracy_gender = Classifier.process_results(confusion_matrix)
+        accuracy_class, accuracy_gender, accuracy_age = Classifier.process_results(confusion_matrix)
         print "Confusion Matrix:\n", confusion_matrix
         print
         print "Accuracy to each class:\n", accuracy_class
         print
         print "Accuracy of gender classification:\n", accuracy_gender
+        print
+        print "Accuracy of age classification:\n", accuracy_age
