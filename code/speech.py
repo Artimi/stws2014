@@ -19,6 +19,7 @@ TEST_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_devel.txt'
 
 MFCC_COEFICIENTS = 19
 MFCC_COEFICIENTS_ENERGY = MFCC_COEFICIENTS + 1
+NUMBER_MFCC = MFCC_COEFICIENTS_ENERGY
 RATE = 8000
 NUMBER_GAUSSIANS = 32
 
@@ -108,12 +109,15 @@ class Trainer(object):
         self.c = Core.create_mfcc(RATE, delta_delta)
         self.gmm_path = gmm_path
         self.vad = vad
+        if delta_delta:
+            global NUMBER_MFCC
+            NUMBER_MFCC = NUMBER_MFCC * 3
 
     def get_kmeans_means(self, data):
         """
         Returns means of given data computed using kmeans algorithm
         """
-        kmeans = bob.machine.KMeansMachine(NUMBER_GAUSSIANS, MFCC_COEFICIENTS_ENERGY)
+        kmeans = bob.machine.KMeansMachine(NUMBER_GAUSSIANS, NUMBER_MFCC)
         kmeansTrainer = bob.trainer.KMeansTrainer()
         # https://groups.google.com/forum/#!topic/bob-devel/VOi8k0Ts1gw
         #kmeansTrainer.initialization_method = kmeansTrainer.KMEANS_PLUS_PLUS
@@ -126,7 +130,7 @@ class Trainer(object):
         """
         Return empty machine
         """
-        gmm = bob.machine.GMMMachine(NUMBER_GAUSSIANS, MFCC_COEFICIENTS_ENERGY)
+        gmm = bob.machine.GMMMachine(NUMBER_GAUSSIANS, NUMBER_MFCC)
         gmm.means = means
         gmm.set_variance_thresholds(1e-6)
         return gmm
