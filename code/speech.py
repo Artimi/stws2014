@@ -64,7 +64,7 @@ class Core(object):
         """
         win_length_ms = 20  # The window length of the cepstral analysis in milliseconds
         win_shift_ms = 10  # The window shift of the cepstral analysis in milliseconds
-        n_filters = 24  # The number of filter bands
+        n_filters = 24  # The number of filter bands # add to 30
         n_ceps = MFCC_COEFICIENTS  # The number of cepstral coefficients
         f_min = 0.  # The minimal frequency of the filter bank
         f_max = 4000.  # The maximal frequency of the filter bank
@@ -167,8 +167,6 @@ class Trainer(object):
             np.save(f, data)
         return data
 
-
-
     def train_machine(self, class_number):
         """
         Trains one gmm machine with class depicted by class_number
@@ -202,12 +200,13 @@ class Trainer(object):
             gmm = self.train_machine(class_number)
             self.save_machine(gmm, os.path.join(self.gmm_path, 'gmm{0}.hdf5'.format(class_number)))
 
+
 class Trainer_MAP(Trainer):
     def extract_data(self):
         """
         Extract mfcc from samples and create dataset for MAP
         """
-        data = {x:None for x in range(1,8)}
+        data = {x: None for x in range(1, 8)}
         data[0] = None
         file_number = 0
         for file_path, sample_class in Core.sample_generator(TRAIN_SAMPLES_FILE):
@@ -239,7 +238,7 @@ class Trainer_MAP(Trainer):
     @staticmethod
     def get_MAP_trainer():
         relevance_factor = 4.
-        trainer = bob.trainer.MAP_GMMTrainer(relevance_factor, True, False, False) # mean adaptation only
+        trainer = bob.trainer.MAP_GMMTrainer(relevance_factor, True, False, False)   # mean adaptation only
         trainer.convergence_threshold = 1e-5
         trainer.max_iterations = 200
         return trainer
@@ -248,7 +247,7 @@ class Trainer_MAP(Trainer):
         data = self.extract_data()
         means = self.get_kmeans_means(data[0])
         gmm_general = self.get_empty_machine(means)
-        ml_trainer =  self.get_trainer()
+        ml_trainer = self.get_trainer()
         ml_trainer.train(gmm_general, data[0])
         self.save_machine(gmm_general, os.path.join(self.gmm_path, 'gmm_general.hdf5'))
         print "Training general_gmm FINISHED"
@@ -260,6 +259,7 @@ class Trainer_MAP(Trainer):
             map_trainer.train(gmm_adapted, data[i])
             self.save_machine(gmm_adapted, os.path.join(self.gmm_path, 'gmm{0}.hdf5'.format(i)))
             print "Adapting gmm {0} FINISHED".format(i)
+
 
 class Classifier(object):
     """
