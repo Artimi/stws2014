@@ -19,7 +19,6 @@ TEST_SAMPLES_FILE = SAMPLES_PATH + 'trainSampleList_devel.txt'
 
 MFCC_COEFICIENTS = 19
 MFCC_COEFICIENTS_ENERGY = MFCC_COEFICIENTS + 1
-NUMBER_MFCC = MFCC_COEFICIENTS_ENERGY
 RATE = 8000
 NUMBER_GAUSSIANS = 32
 
@@ -110,14 +109,15 @@ class Trainer(object):
         self.gmm_path = gmm_path
         self.vad = vad
         if delta_delta:
-            global NUMBER_MFCC
-            NUMBER_MFCC = NUMBER_MFCC * 3
+            self.number_mfcc = 3 * MFCC_COEFICIENTS_ENERGY
+        else:
+            self.number_mfcc = MFCC_COEFICIENTS_ENERGY
 
     def get_kmeans_means(self, data):
         """
         Returns means of given data computed using kmeans algorithm
         """
-        kmeans = bob.machine.KMeansMachine(NUMBER_GAUSSIANS, NUMBER_MFCC)
+        kmeans = bob.machine.KMeansMachine(NUMBER_GAUSSIANS, self.number_mfcc)
         kmeansTrainer = bob.trainer.KMeansTrainer()
         # https://groups.google.com/forum/#!topic/bob-devel/VOi8k0Ts1gw
         #kmeansTrainer.initialization_method = kmeansTrainer.KMEANS_PLUS_PLUS
@@ -130,7 +130,7 @@ class Trainer(object):
         """
         Return empty machine
         """
-        gmm = bob.machine.GMMMachine(NUMBER_GAUSSIANS, NUMBER_MFCC)
+        gmm = bob.machine.GMMMachine(NUMBER_GAUSSIANS, self.number_mfcc)
         gmm.means = means
         gmm.set_variance_thresholds(1e-6)
         return gmm
@@ -169,6 +169,7 @@ class Trainer(object):
                 data = mfcc
             if file_number % 100 == 0:
                 print "File number {0}".format(file_number)
+                break
         print "Extracting data FINISHED for class: {0}".format(class_number)
         with open(os.path.join(self.gmm_path, 'mfccs_{0}.npy'.format(class_number)), 'w') as f:
             np.save(f, data)
