@@ -316,9 +316,16 @@ class Classifier(object):
             np.save(f, confusion_matrix)
         return confusion_matrix
 
-    def process_results(self, confusion_matrix):
-        accuracy = np.diagonal(confusion_matrix) / np.sum(confusion_matrix, axis=1)
-        return accuracy
+    @classmethod
+    def process_results(confusion_matrix):
+        accuracy_class = np.diagonal(confusion_matrix) / np.sum(confusion_matrix, axis=1)
+        accuracy_gender = {'kid': 0.0, 'f': 0.0, 'm': 0.0}
+        accuracy_gender['kid'] = confusion_matrix[0, 0] / np.sum(confusion_matrix[0, :])
+        f_line = np.sum(confusion_matrix[1::2, 1:], axis=0)
+        accuracy_gender['f'] = np.sum(f_line[::2]) / np.sum(f_line)
+        m_line = np.sum(confusion_matrix[2::2, 1:], axis=0)
+        accuracy_gender['m'] = np.sum(m_line[1::2]) / np.sum(m_line)
+        return accuracy_class, accuracy_gender
 
 if __name__ == "__main__":
     import argparse
@@ -332,6 +339,7 @@ if __name__ == "__main__":
     operation.add_argument('--train', action='store_true', help='Train regime, train gmm and saves them to machine_path')
     operation.add_argument('--classify-file', help='Classify one file')
     operation.add_argument('--test', action='store_true', help='Tests gmm machines with test data')
+    operation.add_argument('--show-results', action='store_true', help='Show results from machine_path')
     args = parser.parse_args()
     if args.train:
         if args.map:
@@ -353,3 +361,11 @@ if __name__ == "__main__":
         print confusion_matrix
         accuracy = classifier.process_results(confusion_matrix)
         print accuracy
+    elif args.show_results:
+        confusion_matrix = np.load(os.path.join(args.machine_path, 'confusion_matrix.npy'))
+        accuracy_class, accuracy_gender = Classifier.process_results(confusion_matrix)
+        print "Confusion Matrix:\n", confusion_matrix
+        print
+        print "Accuracy to each class:\n", accuracy_class
+        print
+        print "Accuracy of gender classification:\n", accuracy_gender
