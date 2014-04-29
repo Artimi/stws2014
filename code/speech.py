@@ -369,7 +369,7 @@ if __name__ == "__main__":
         classifier = Classifier(args.machine_path, args.vad, args.delta_delta)
         overall_likeliood = classifier.classify_file(wav_path)
         best_match = np.argmax(overall_likeliood) + 1
-        print "Overall likelihood:", overall_likeliood
+        print "Overall likelihood:", ["%0.2f" % i for i in overall_likeliood]
         print "Best match:", best_match
     elif args.test:
         classifier = Classifier(args.machine_path, args.vad, args.delta_delta)
@@ -380,9 +380,13 @@ if __name__ == "__main__":
         accuracy_class, accuracy_gender, accuracy_age = Classifier.process_results(confusion_matrix)
         print "Confusion Matrix:\n", confusion_matrix
         print
-        print "Accuracy to each class:\n", accuracy_class
-        print "Average: ", np.average(accuracy_class)
+        print "Accuracy to each class:\n"
+	print ["%0.2f" % i for i in accuracy_class]
+	print
+        print "Average: ", "%0.2f" % np.average(accuracy_class)
         print
-        print "Accuracy of gender classification:\n", accuracy_gender
+        print "Accuracy of gender classification:\n"
+	print {key: "%0.2f" % value for key, value in accuracy_gender.iteritems()}
         print
-        print "Accuracy of age classification:\n", accuracy_age
+        print "Accuracy of age classification:\n"
+	print {key: "%0.2f" % value for key, value in accuracy_age.iteritems()}
