@@ -378,15 +378,16 @@ if __name__ == "__main__":
     elif args.show_results:
         confusion_matrix = np.load(os.path.join(args.machine_path, 'confusion_matrix.npy'))
         accuracy_class, accuracy_gender, accuracy_age = Classifier.process_results(confusion_matrix)
-        print "Confusion Matrix:\n", confusion_matrix
+        np.set_printoptions(precision=3)
+        print "Confusion Matrix:",
+        print confusion_matrix / np.sum(confusion_matrix, axis=1)[:, None]
         print
-        print "Accuracy to each class:\n"
-	print ["%0.2f" % i for i in accuracy_class]
-	print
-        print "Average: ", "%0.2f" % np.average(accuracy_class)
+        print "Accuracy to each class:\n", accuracy_class
+        print
+        print "Average: ", "%0.3f" % np.average(accuracy_class)
         print
         print "Accuracy of gender classification:\n"
-	print {key: "%0.2f" % value for key, value in accuracy_gender.iteritems()}
+        print {key: "%0.3f" % value for key, value in accuracy_gender.iteritems()}
         print
         print "Accuracy of age classification:\n"
-	print {key: "%0.2f" % value for key, value in accuracy_age.iteritems()}
+        print {key: "%0.3f" % value for key, value in accuracy_age.iteritems()}
