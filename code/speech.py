@@ -380,8 +380,9 @@ if __name__ == "__main__":
         accuracy_class, accuracy_gender, accuracy_age = Classifier.process_results(confusion_matrix)
         np.set_printoptions(precision=3)
         print "Confusion Matrix:",
-        print confusion_matrix / np.sum(confusion_matrix, axis=1)[:, None]
-        print
+        rel_cm = confusion_matrix / np.sum(confusion_matrix, axis=1)[:, None]
+        np.savetxt(os.path.join(args.machine_path, 'confusion_matrix.csv'), rel_cm, fmt='%.3f')
+        print rel_cm
         print "Accuracy to each class:\n", accuracy_class
         print
         print "Average: ", "%0.3f" % np.average(accuracy_class)
